@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANT Ecuador - Propuesta 3: Agentes</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div id="ui-container">
+        <header>
+            <div class="logo-container">
+                <div class="ant-logo">ANT</div>
+                <div class="title-text">
+                    <span>AGENCIA NACIONAL DE TRÁNSITO</span>
+                    <h1>CONTROL DE VELOCIDAD</h1>
+                    <small
+                        style="opacity: 0.9; color: #f1c40f; display: block; margin-top: 4px; font-weight: 800; letter-spacing: 1px;">
+                        PROPUESTA 3: AGENTES DE TRÁNSITO
+                    </small>
+                </div>
+            </div>
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <span class="label">VEHÍCULOS</span>
+                    <span id="total-vehicles" class="value">0</span>
+                </div>
+                <div class="stat-item danger">
+                    <span class="label">INFRACCIONES</span>
+                    <span id="total-infractions" class="value">0</span>
+                </div>
+                <div class="stat-item warning" style="border-color: #3498db;">
+                    <span class="label">AGENTES ACTIVOS</span>
+                    <span id="agents-count" class="value">2</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="notification-area"></div>
+        <div id="alert-queue"></div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="dot normal"></span> Control Agentado</div>
+            <div class="legend-item"><span class="dot infractor"></span> Infractor (> 50 km/h)</div>
+        </div>
+
+        <div class="controls-hint">
+            Usa el mouse para rotar la cámara • Scroll para Zoom
+        </div>
+    </div>
+
+    <canvas id="bg"></canvas>
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>
