@@ -297,9 +297,7 @@ class Vehicle {
 
         // Pre-calcular valores para optimizar update
         this.isInfractor = this.baseSpeedKmh > SPEED_LIMIT;
-        this.safeBumpSpeedKmh = this.isInfractor
-            ? (42 + Math.random() * 5)
-            : (20 + Math.random() * 5);
+        this.safeBumpSpeedKmh = 25 + Math.random() * 5; // Todos bajan a ~25-30 km/h
         this.lastInfoCardSpeed = -1;
 
         // Carriles: Derecha para Sur, Izquierda para Norte
@@ -395,20 +393,20 @@ class Vehicle {
     }
 
     update(delta, allVehicles) {
-        // 1. Lógica de frenado por rompevelocidades
+        // 1. Lógica de frenado por rompevelocidades (Física Matemática Suave)
         const currentBumpZ = this.direction === -1 ? SPEED_BUMP_SOUTH_Z : SPEED_BUMP_NORTH_Z;
         const distToBump = (this.mesh.position.z - currentBumpZ) * -this.direction;
         let targetSpeed = this.baseSpeedKmh;
 
-        // Transición sinusoidal (Curva S) para suavidad absoluta
-        if (distToBump > 0 && distToBump < 150) {
-            const ratio = distToBump / 150;
-            const smoothFactor = 0.5 * (1 - Math.cos(Math.PI * ratio));
-            targetSpeed = this.safeBumpSpeedKmh + (this.baseSpeedKmh - this.safeBumpSpeedKmh) * smoothFactor;
-        } else if (distToBump <= 0 && distToBump > -100) {
-            const ratio = Math.abs(distToBump) / 100;
-            const smoothFactor = 0.5 * (1 - Math.cos(Math.PI * ratio));
-            targetSpeed = this.safeBumpSpeedKmh + (this.baseSpeedKmh - this.safeBumpSpeedKmh) * smoothFactor;
+        // Rango de influencia: 160 metros antes hasta 80 metros después
+        if (distToBump > 0 && distToBump < 160) {
+            // Curva de frenado suave usando smoothstep (0 a 1)
+            const ratio = THREE.MathUtils.smoothstep(distToBump, 0, 160);
+            targetSpeed = this.safeBumpSpeedKmh + (this.baseSpeedKmh - this.safeBumpSpeedKmh) * ratio;
+        } else if (distToBump <= 0 && distToBump > -80) {
+            // Recuperación suave después del resalto
+            const ratio = THREE.MathUtils.smoothstep(Math.abs(distToBump), 0, 80);
+            targetSpeed = this.safeBumpSpeedKmh + (this.baseSpeedKmh - this.safeBumpSpeedKmh) * ratio;
         }
 
         // 2. Lógica Anti-Colisión Suave
@@ -434,8 +432,15 @@ class Vehicle {
             if (minDist < 12) targetSpeed = 0; // Frenado total si está muy cerca
         }
 
-        const alpha = 1 - Math.exp(-(targetSpeed < this.speedKmh ? 3.5 : 1.2) * delta);
+        // Aplicar cambio de velocidad con respuesta física inmediata para frenado
+        const brakeResponsiveness = targetSpeed < this.speedKmh ? 5.0 : 1.5;
+        const alpha = 1 - Math.exp(-brakeResponsiveness * delta);
         this.speedKmh = THREE.MathUtils.lerp(this.speedKmh, targetSpeed, alpha);
+
+        // Debug log cada segundo para monitorear (opcional, comentar si molesta)
+        if (Math.abs(distToBump) < 20 && Math.random() < 0.05) {
+            console.log(`[BUMP DEBUG] Vehículo ${this.plate.number}: Vel Actual = ${Math.round(this.speedKmh)} km/h, Target = ${Math.round(targetSpeed)} km/h`);
+        }
 
         // Bloqueo de seguridad: No retrocesos, no velocidades negativas
         if (this.speedKmh < 0.1) this.speedKmh = 0;
@@ -447,26 +452,34 @@ class Vehicle {
         // Detección cuando cruza su respectivo radar
         if (!this.checked) {
             const radarPos = this.direction === -1 ? RADAR_SOUTH_Z : RADAR_NORTH_Z;
-            const hasCrossed = this.direction === -1 ? (this.mesh.position.z <= radarPos + 5) : (this.mesh.position.z >= radarPos - 5);
+            const hasCrossed = this.direction === -1 ? (this.mesh.position.z <= radarPos) : (this.mesh.position.z >= radarPos);
             if (hasCrossed) {
                 this.checked = true;
                 this.processDetection();
             }
         }
+
+        // Actualizar tarjeta visual siempre que la velocidad cambie significativamente
+        this.updateInfoCard();
     }
     // Optimizar actualización de Info Card (Solo si está cerca y cambió la velocidad)
 
     updateInfoCard() {
+        const roundedSpeed = Math.round(this.speedKmh);
+        if (roundedSpeed === this.lastInfoCardSpeed) return;
+        this.lastInfoCardSpeed = roundedSpeed;
+
         const canvas = this.infoCard.material.map.image;
         if (!canvas) return;
         const context = canvas.getContext('2d');
-        const roundedSpeed = Math.round(this.speedKmh);
 
+        // Limpieza rápida
         context.clearRect(0, 0, 512, 110);
         context.fillStyle = 'rgba(15, 23, 42, 0.95)';
         context.beginPath();
-        context.roundRect(0, 0, 512, 256, 40);
+        context.roundRect(0, 0, 512, 110, { tl: 40, tr: 40, bl: 0, br: 0 });
         context.fill();
+
         context.lineWidth = 10;
         context.strokeStyle = roundedSpeed > SPEED_LIMIT ? '#ff3e3e' : '#22d3ee';
         context.stroke();
@@ -475,16 +488,6 @@ class Vehicle {
         context.fillStyle = context.strokeStyle;
         context.textAlign = 'center';
         context.fillText(`${roundedSpeed} km/h`, 256, 100);
-
-        // Redraw plates and city (static)
-        context.fillStyle = '#f1c40f';
-        context.fillRect(60, 120, 392, 80);
-        context.font = 'Bold 65px Courier New';
-        context.fillStyle = 'black';
-        context.fillText(this.plate.number, 256, 175);
-        context.font = '36px Arial';
-        context.fillStyle = 'white';
-        context.fillText(this.plate.city.toUpperCase(), 256, 235);
 
         this.infoCard.material.map.needsUpdate = true;
     }
