@@ -23,7 +23,7 @@ const LIGHT_DURATIONS = { green: 15, yellow: 3, red: 10 };
 
 // State
 let vehicles = [];
-let stats = { total: 0, infractions: 0 };
+let stats = { total: 0, infractions: 0, redLights: 0 };
 let csvData = [];
 let dataIndex = 0;
 let radarFlashLight;
@@ -99,7 +99,7 @@ function triggerCapture(vehicle) {
         const alert = document.createElement('div');
         alert.className = 'infraction-alert';
         alert.innerHTML = `
-    < div class="alert-title" >🚨 FOTOMULTA GENERADA</div >
+    <div class="alert-title">🚨 FOTOMULTA GENERADA</div>
         <div class="alert-details">
             <div class="alert-plate">${vehicle.plate.number}</div>
             <div class="alert-speed">${Math.round(vehicle.speedKmh)} km/h</div>
@@ -265,31 +265,7 @@ function createEnvironment() {
     createTrafficLight(ROAD_WIDTH / 2 + 3, 0, SEMAPHORE_Z + 10, "south", 0); // Para South (400->-400), mira al Norte
     createTrafficLight(-(ROAD_WIDTH / 2 + 3), 0, SEMAPHORE_Z - 10, "north", Math.PI); // Para North (-400->400), mira al Sur
 
-    // Edificios y Decoración "Premium"
-    for (let i = 0; i < 25; i++) {
-        const side = Math.random() > 0.5 ? 1 : -1;
-        const x = side * (35 + Math.random() * 40);
-        const z = (Math.random() - 0.5) * 800;
-
-        // Evitar solapamiento con calles
-        if (Math.abs(z - SEMAPHORE_Z) < 15) continue;
-
-        const h = 15 + Math.random() * 50;
-        const w = 15 + Math.random() * 10;
-        const color = new THREE.Color().setHSL(Math.random() * 0.1 + 0.6, 0.2, 0.3 + Math.random() * 0.2);
-        const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ color, metalness: 0.3, roughness: 0.8 }));
-        b.position.set(x, h / 2, z);
-        b.castShadow = true;
-        scene.add(b);
-
-        // Ventanas emisivas sencillas
-        if (Math.random() > 0.3) {
-            const winMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffcc, emissiveIntensity: 1 });
-            const win = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 1, w + 0.2), winMat);
-            win.position.set(x, h * 0.8, z);
-            scene.add(win);
-        }
-    }
+    // Edificios y Decoración "Premium" - REMOVIDO POR SOLICITUD
 
     // Aceras (Sidewalks)
     const swMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 1 });
@@ -407,8 +383,11 @@ class Pedestrian {
     }
 
     update(delta) {
-        if (currentLight === LIGHT.RED) {
-            this.waiting = false;
+        // Los peatones ya no son imprudentes, solo cruzan en rojo para los autos
+        if (this.waiting) {
+            if (currentLight === LIGHT.RED) {
+                this.waiting = false;
+            }
         }
 
         if (!this.waiting) {
@@ -449,6 +428,10 @@ class Vehicle {
         if (data && data.city) this.plate.city = data.city;
         this.direction = direction || -1;
         this.lastInfoCardSpeed = -1;
+        this.redLightChecked = false;
+
+        // Probabilidad de pasarse el semáforo en rojo (más alta si ya es infractor de velocidad)
+        this.willIgnoreRedLight = this.isInfractor ? (Math.random() < 0.3) : (Math.random() < 0.05);
 
         this.mesh = new THREE.Group();
         const laneX = this.direction === -1 ? 3.5 : -3.5;
@@ -540,23 +523,38 @@ class Vehicle {
     }
 
     update(delta, allVehicles) {
-        // 1. Lógica de Semáforo (Solo vía principal)
+        // 1. Lógica de Semáforo Mejorada (Aproximación Gradual)
         const myLight = currentLight;
-
-        // Distancia al semáforo (Positiva si no ha llegado)
-        const distToSemaphore = (this.mesh.position.z - (SEMAPHORE_Z + (this.direction === -1 ? 10 : -10))) * -this.direction;
+        const stopLineZ = SEMAPHORE_Z + (this.direction === -1 ? 15 : -15);
+        const distToStop = (this.mesh.position.z - stopLineZ) * -this.direction;
 
         let targetSpeed = this.baseSpeedKmh;
 
-        if (distToSemaphore > 0 && distToSemaphore < 120) {
-            if (myLight === LIGHT.RED) {
-                const ratio = Math.max(0, distToSemaphore / 80);
-                const smoothFactor = 0.5 * (1 - Math.cos(Math.PI * ratio));
-                targetSpeed = this.baseSpeedKmh * smoothFactor;
-                if (distToSemaphore < 3) targetSpeed = 0;
-            } else if (myLight === LIGHT.YELLOW && distToSemaphore > 40) {
-                targetSpeed = this.baseSpeedKmh * 0.5;
+        // Influencia del semáforo: 200 metros antes de la línea (Máximo gradualismo)
+        if (distToStop > 0 && distToStop < 200) {
+            // Punto de no retorno: si está a menos de 15m y va rápido, "se la juega" (buenazo)
+            const canPass = (distToStop < 20 && this.speedKmh > 40);
+
+            if (!canPass) {
+                if (myLight === LIGHT.RED) {
+                    // Curva smoothstep para frenado muy fluido
+                    const ratio = THREE.MathUtils.smoothstep(distToStop, 0, 200);
+                    targetSpeed = this.baseSpeedKmh * ratio;
+                    if (distToStop < 3) targetSpeed = 0; // Detenerse en la línea
+                } else if (myLight === LIGHT.YELLOW) {
+                    // Si está lejos, baja velocidad. Si está cerca, intenta pasar.
+                    if (distToStop > 40) {
+                        const ratio = THREE.MathUtils.smoothstep(distToStop, 40, 200);
+                        targetSpeed = (this.baseSpeedKmh * 0.4) + (this.baseSpeedKmh * 0.6) * ratio;
+                    }
+                }
             }
+        }
+
+        // Detección de infracción por pasarse el rojo
+        if (!this.redLightChecked && distToStop < 0 && distToStop > -15 && myLight === LIGHT.RED) {
+            this.redLightChecked = true;
+            this.processDetection(true); // Registrar "Semáforo Ignorado"
         }
 
         // 2. Lógica Anti-Colisión
@@ -582,32 +580,22 @@ class Vehicle {
         }
 
 
-        // 3. Motor de Física: Aceleración Suave (Mejorada desde cero)
-        // Rate dinámico: acelerar desde 0 es más lento que frenar
-        let accelRate = 1.2;
-        if (targetSpeed < this.speedKmh) {
-            accelRate = 3.5; // Frenado reactivo
-        } else if (this.speedKmh < 10) {
-            accelRate = 0.5; // Arranque muy suave desde cero
-        } else {
-            accelRate = 1.0; // Crucero normal
-        }
-
-        const alpha = 1 - Math.exp(-accelRate * delta);
+        // 3. Motor de Física: Respuesta rápida para frenado
+        const responsiveness = targetSpeed < this.speedKmh ? 5.0 : 1.2;
+        const alpha = 1 - Math.exp(-responsiveness * delta);
         this.speedKmh = THREE.MathUtils.lerp(this.speedKmh, targetSpeed, alpha);
+
+        // Debug log opcional para semáforos
+        if (distToStop > 0 && distToStop < 30 && Math.random() < 0.05) {
+            console.log(`[LIGHT DEBUG] Vehículo ${this.plate.number}: Luz ${myLight}, Vel ${Math.round(this.speedKmh)} km/h, Target ${Math.round(targetSpeed)}`);
+        }
 
         if (this.speedKmh < 0.1) this.speedKmh = 0;
         this.speedMs = this.speedKmh / 3.6;
         this.mesh.position.z += this.direction * this.speedMs * delta;
 
-        // Info Card (Optimizada: Solo si cambió la velocidad redondeada)
-        if (this.infoCard && Math.abs(distToSemaphore) < 150) {
-            const rounded = Math.round(this.speedKmh);
-            if (rounded !== this.lastInfoCardSpeed) {
-                this.updateInfoCard();
-                this.lastInfoCardSpeed = rounded;
-            }
-        }
+        // Info Card: Actualización continua durante cambios de velocidad
+        this.updateInfoCard();
 
         // Detección de Radar
         if (!this.checked) {
@@ -624,16 +612,21 @@ class Vehicle {
     }
 
     updateInfoCard() {
+        const roundedSpeed = Math.round(this.speedKmh);
+        if (roundedSpeed === this.lastInfoCardSpeed) return;
+        this.lastInfoCardSpeed = roundedSpeed;
+
         const canvas = this.infoCard.material.map.image;
         if (!canvas) return;
         const context = canvas.getContext('2d');
-        const roundedSpeed = Math.round(this.speedKmh);
 
-        context.clearRect(0, 0, 512, 110);
+        // Limpieza y dibujo del fondo
+        context.clearRect(0, 0, 512, 256);
         context.fillStyle = 'rgba(15, 23, 42, 0.95)';
         context.beginPath();
         context.roundRect(0, 0, 512, 256, 40);
         context.fill();
+
         context.lineWidth = 10;
         context.strokeStyle = roundedSpeed > SPEED_LIMIT ? '#ff3e3e' : '#22d3ee';
         context.stroke();
@@ -641,9 +634,9 @@ class Vehicle {
         context.font = 'Bold 100px Arial';
         context.fillStyle = context.strokeStyle;
         context.textAlign = 'center';
-        context.fillText(`${roundedSpeed} km / h`, 256, 100);
+        context.fillText(`${roundedSpeed} km/h`, 256, 100);
 
-        // Redraw plates and city (static)
+        // Redibujar placa y ciudad (estáticos)
         context.fillStyle = '#f1c40f';
         context.fillRect(60, 120, 392, 80);
         context.font = 'Bold 65px Courier New';
@@ -656,14 +649,23 @@ class Vehicle {
         this.infoCard.material.map.needsUpdate = true;
     }
 
-    processDetection() {
+    processDetection(isRedLightJump = false) {
         stats.total++;
         document.getElementById('total-vehicles').innerText = stats.total;
-        if (this.speedKmh > SPEED_LIMIT) {
+
+        if (isRedLightJump) {
+            stats.redLights++;
+            document.getElementById('red-light-infractions').innerText = stats.redLights;
+        }
+
+        if (this.speedKmh > SPEED_LIMIT || isRedLightJump) {
             stats.infractions++;
             document.getElementById('total-infractions').innerText = stats.infractions;
+
+            // Color rojo si es infracción por velocidad o semáforo
             this.bodyMaterial.color.setHex(0xff3e3e);
-            this.bodyMaterial.emissive.setHex(0x550000);
+            this.bodyMaterial.emissive.setHex(isRedLightJump ? 0xff0000 : 0x550000);
+
             triggerCapture(this);
         } else {
             this.bodyMaterial.color.setHex(0x00e676);
@@ -677,19 +679,15 @@ class Vehicle {
 function spawnLoop() {
     const delay = (-Math.log(1 - Math.random()) / LAMBDA) * 1000;
 
-    // Decidir si el vehículo es en calle principal o secundaria
-    const isCross = false;
-
-    // Categorización (Infractor o Normal)
-    const isInfractor = Math.random() < PROB_INFRACTOR;
-
+    // Solo vehículos del dataset (infractores o registros reales)
     let data = null;
-    if (isInfractor && csvData.length > 0) {
+    if (csvData.length > 0) {
         data = csvData[dataIndex % csvData.length];
         dataIndex++;
     } else {
+        // Fallback si no hay CSV, pero intentamos que sea infractor
         data = {
-            speed: Math.floor(Math.random() * 20) + 35,
+            speed: Math.floor(Math.random() * 40) + 55, // 55 a 95 km/h
             provinceLetter: null,
             city: null
         };
@@ -702,7 +700,6 @@ function spawnLoop() {
 
 // Init
 createEnvironment();
-spawnPedestrian();
 loadCSV().finally(() => {
     console.log("Iniciando spawnLoop...");
     spawnLoop();
@@ -727,11 +724,7 @@ function animate() {
         }
     }
 
-    for (let i = pedestrians.length - 1; i >= 0; i--) {
-        if (!pedestrians[i].update(delta)) {
-            pedestrians.splice(i, 1);
-        }
-    }
+    // Pedestrians removed per user request
     controls.update();
     renderer.render(scene, camera);
 }
