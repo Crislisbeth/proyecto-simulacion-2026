@@ -3,11 +3,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // Configuración Estadística
 const SPEED_LIMIT = 50;
-const RADAR_SOUTH_Z = 50;
-const RADAR_NORTH_Z = -50;
+const RADAR_SOUTH_Z = 40;
+const RADAR_NORTH_Z = -10;
+const SPEED_BUMP_SOUTH_Z = 50;
+const SPEED_BUMP_NORTH_Z = -50;
 const ROAD_WIDTH = 14;
-const LAMBDA = 0.8; // Aumentado ligeramente para más flujo
-const PROB_INFRACTOR = 0.35; // Probabilidad base si falla CSV
+const LAMBDA = 1.2; // Más vehículos por segundo (antes 0.6)
+const PROB_INFRACTOR = 0.7; // Mayor probabilidad para ver el dataset (antes 0.3)
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
 
 // State
@@ -15,7 +17,7 @@ let vehicles = [];
 let stats = { total: 0, infractions: 0 };
 let csvData = [];
 let dataIndex = 0;
-let radarFlashes = { south: null, north: null };
+let radarFlashLight;
 
 // Provinces of Ecuador
 const PROVINCES = {
@@ -40,45 +42,54 @@ function generateEcuadorianPlate(provinceLetter) {
 async function loadCSV() {
     try {
         const response = await fetch(CSV_PATH);
-        if (!response.ok) throw new Error("Dataset not found");
+        if (!response.ok) throw new Error("No se pudo cargar el CSV");
         const text = await response.text();
-        // Manejar \r\n y filtrar líneas vacías
-        const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0).slice(1);
+        const lines = text.split(/\r?\n/).slice(1); // Manejar \r\n
         csvData = lines.map(line => {
             const parts = line.split(';').map(p => p.trim());
-            if (parts.length < 6) return null;
+            if (parts.length < 5) return null;
             const provName = parts[0].toUpperCase();
             let pLetter = 'P';
             for (const [letter, name] of Object.entries(PROVINCES)) {
                 if (provName.includes(name.toUpperCase())) { pLetter = letter; break; }
             }
+            // Intentar obtener la velocidad de la penúltima columna
             const speed = parseInt(parts[parts.length - 2]);
             if (isNaN(speed)) return null;
-            return { provinceLetter: pLetter, city: parts[1] || PROVINCES[pLetter], speed: speed };
+
+            return {
+                provinceLetter: pLetter,
+                city: parts[1] || PROVINCES[pLetter],
+                speed: speed
+            };
         }).filter(d => d !== null);
-        console.log(`Dataset cargado: ${csvData.length} registros.`);
+        console.log(`Dataset CSV cargado: ${csvData.length} registros`);
     } catch (e) {
-        console.warn("CSV no disponible, usando generación aleatoria.", e);
-        csvData = [];
+        console.error("Error cargando el dataset del usuario:", e);
     }
 }
 
 function triggerCapture(vehicle) {
-    const queue = document.getElementById('alert-queue');
+    try {
+        const queue = document.getElementById('alert-queue');
+        if (!queue) return;
 
-    // 3D Radar Flash effect (Flash físico en el radar correspondiente)
-    const flash = vehicle.direction === -1 ? radarFlashes.south : radarFlashes.north;
-    if (flash) {
-        flash.intensity = 150;
-        setTimeout(() => { if (flash) flash.intensity = 0; }, 80);
-        setTimeout(() => { if (flash) flash.intensity = 100; }, 150);
-        setTimeout(() => { if (flash) flash.intensity = 0; }, 230);
-    }
+        // 3D Radar Flash effect
+        const radarId = vehicle.direction === -1 ? "south" : "north";
+        if (window.radars && window.radars[radarId]) {
+            const flash = window.radars[radarId].flash;
+            if (flash) {
+                flash.intensity = 150;
+                setTimeout(() => { if (flash) flash.intensity = 0; }, 80);
+                setTimeout(() => { if (flash) flash.intensity = 100; }, 150);
+                setTimeout(() => { if (flash) flash.intensity = 0; }, 230);
+            }
+        }
 
-    // Create alert element
-    const alert = document.createElement('div');
-    alert.className = 'infraction-alert';
-    alert.innerHTML = `
+        // Create alert element
+        const alert = document.createElement('div');
+        alert.className = 'infraction-alert';
+        alert.innerHTML = `
         <div class="alert-title">🚨 FOTOMULTA GENERADA</div>
         <div class="alert-details">
             <div class="alert-plate">${vehicle.plate.number}</div>
@@ -86,14 +97,17 @@ function triggerCapture(vehicle) {
         </div>
     `;
 
-    // Add to queue
-    queue.prepend(alert);
+        // Add to queue
+        queue.prepend(alert);
 
-    // Remove after timeout
-    setTimeout(() => {
-        alert.classList.add('alert-exit');
-        setTimeout(() => alert.remove(), 500);
-    }, 4500);
+        // Remove after timeout
+        setTimeout(() => {
+            alert.classList.add('alert-exit');
+            setTimeout(() => alert.remove(), 500);
+        }, 4500);
+    } catch (e) {
+        console.error('Error en triggerCapture:', e);
+    }
 }
 
 // Scene Setup
@@ -102,7 +116,7 @@ scene.background = new THREE.Color(0xa5d6f7); // Bright Quito sky
 scene.fog = new THREE.Fog(0xa5d6f7, 50, 400);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(50, 40, 80);
+camera.position.set(60, 40, 0); // Vista amplia que ve el resalto y el radar
 
 const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -112,7 +126,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.target.set(0, 0, 0);
+controls.target.set(0, 0, 20); // Centrar vista entre radar y resalto
 
 // Lighting
 const ambientLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
@@ -183,36 +197,43 @@ function createEnvironment() {
         lightHead.position.set(-ROAD_WIDTH / 2 - 1, 12, i);
         scene.add(lightHead);
 
-        const sLight = new THREE.PointLight(0xffcc88, 5, 40);
+        const sLight = new THREE.PointLight(0xffcc88, 5, 20); // Alcance reducido para mejor rendimiento
         sLight.position.set(-ROAD_WIDTH / 2 - 1, 11, i);
+        // Deshabilitar sombras de luces de calle para ganar FPS
+        sLight.castShadow = false;
         scene.add(sLight);
     }
 
-    // Photo Radar 3D Models
+    // Photo Radar 3D Models (Two: one for North, one for South)
     const createRadar = (id, x, z, rotation) => {
-        const group = new THREE.Group();
-        group.position.set(x, 0, z);
-        if (rotation) group.rotation.y = rotation;
+        const radarGroup = new THREE.Group();
+        radarGroup.position.set(x, 0, z);
+        if (rotation) radarGroup.rotation.y = rotation;
 
+        // Post
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 10), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 }));
         post.position.y = 5;
         post.castShadow = true;
-        group.add(post);
+        radarGroup.add(post);
 
+        // Main Body
         const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 1.5), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 }));
         body.position.y = 10;
         body.castShadow = true;
-        group.add(body);
+        radarGroup.add(body);
 
+        // Camera Lens
         const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0 }));
         lens.rotation.x = Math.PI / 2;
         lens.position.set(0, 10.5, 0.6);
-        group.add(lens);
+        radarGroup.add(lens);
 
+        // Flash Light (PointLight)
         const flash = new THREE.PointLight(0xffffff, 0, 30);
         flash.position.set(0, 10.5, 0.8);
-        group.add(flash);
+        radarGroup.add(flash);
 
+        // Sign "RADAR"
         const signGeo = new THREE.PlaneGeometry(2, 1);
         const signCanvas = document.createElement('canvas');
         const signCtx = signCanvas.getContext('2d');
@@ -222,14 +243,37 @@ function createEnvironment() {
         const signTex = new THREE.CanvasTexture(signCanvas);
         const sign = new THREE.Mesh(signGeo, new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide }));
         sign.position.set(0, 7.5, 0.8);
-        group.add(sign);
+        radarGroup.add(sign);
 
-        radarFlashes[id] = flash;
-        scene.add(group);
+        if (!window.radars) window.radars = {};
+        window.radars[id] = { group: radarGroup, flash };
+        scene.add(radarGroup);
     };
 
     createRadar("south", ROAD_WIDTH / 2 + 3, RADAR_SOUTH_Z, 0);
     createRadar("north", -ROAD_WIDTH / 2 - 3, RADAR_NORTH_Z, Math.PI);
+
+    // Rompevelocidades 3D (Baden)
+    const createBump = (z) => {
+        const bump = new THREE.Mesh(
+            new THREE.CylinderGeometry(4, 4, ROAD_WIDTH, 32, 1, false, 0, Math.PI),
+            new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 })
+        );
+        bump.rotation.z = Math.PI / 2;
+        bump.position.set(0, -3.7, z);
+        scene.add(bump);
+
+        // Líneas amarillas de advertencia en el rompevelocidades
+        for (let j = -ROAD_WIDTH / 2; j <= ROAD_WIDTH / 2; j += 2) {
+            const line = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.4), new THREE.MeshStandardMaterial({ color: 0xf1c40f }));
+            line.rotation.x = -Math.PI / 2;
+            line.position.set(j, 0.35, z);
+            scene.add(line);
+        }
+    };
+
+    createBump(SPEED_BUMP_SOUTH_Z);
+    createBump(SPEED_BUMP_NORTH_Z);
 
     // Mountains
     for (let i = 0; i < 6; i++) {
@@ -245,22 +289,28 @@ class Vehicle {
     constructor(data, direction) {
         this.baseSpeedKmh = data ? data.speed : (Math.floor(Math.random() * 60) + 30);
         this.speedKmh = this.baseSpeedKmh;
-        this.lastRoundedSpeed = -1;
         this.speedMs = this.speedKmh / 3.6;
         this.checked = false;
-        this.direction = direction || (Math.random() > 0.5 ? 1 : -1);
+        this.direction = direction || -1;
         this.plate = generateEcuadorianPlate(data ? data.provinceLetter : null);
         if (data && data.city) this.plate.city = data.city;
 
-        // Carriles: 2 por dirección. Sur: 2.5 y 5.5. Norte: -2.5 y -5.5
-        const lanes = this.direction === -1 ? [2.5, 5.5] : [-2.5, -5.5];
-        const laneX = lanes[Math.floor(Math.random() * lanes.length)];
+        // Pre-calcular valores para optimizar update
+        this.isInfractor = this.baseSpeedKmh > SPEED_LIMIT;
+        this.safeBumpSpeedKmh = this.isInfractor
+            ? (42 + Math.random() * 5)
+            : (20 + Math.random() * 5);
+        this.lastInfoCardSpeed = -1;
 
-        const spawnZ = this.direction === -1 ? 450 : -450;
+        // Carriles: Derecha para Sur, Izquierda para Norte
+        const laneX = this.direction === -1 ? 3.5 : -3.5;
         this.mesh = new THREE.Group();
-        this.mesh.position.set(laneX, 0.8, spawnZ);
+        this.mesh.position.set(laneX, 0.8, this.direction === -1 ? 400 : -400);
+
+        // Rotar vehículo si va en dirección opuesta
         if (this.direction === 1) this.mesh.rotation.y = Math.PI;
 
+        // Body with variant
         const type = Math.floor(Math.random() * 3);
         const color = new THREE.Color().setHSL(Math.random(), 0.7, 0.4);
         const bodyMat = new THREE.MeshStandardMaterial({ color, metalness: 0.7, roughness: 0.2 });
@@ -283,7 +333,7 @@ class Vehicle {
             this.mesh.add(spoiler);
         }
 
-        // Lights
+        // Headlights
         const headLightGeo = new THREE.BoxGeometry(0.5, 0.3, 0.1);
         const headLightMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 2 });
         const hl1 = new THREE.Mesh(headLightGeo, headLightMat);
@@ -293,12 +343,14 @@ class Vehicle {
         hl2.position.x = -0.8;
         this.mesh.add(hl2);
 
+        // Actual Lights
         const pLight = new THREE.SpotLight(0xffffff, 10);
         pLight.position.set(0, 0.5, -2.5);
-        pLight.target.position.set(0, 0.5, -50);
+        pLight.target.position.set(laneX, 0.5, -50);
         this.mesh.add(pLight);
         this.mesh.add(pLight.target);
 
+        // Taillights
         const tailLightMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1 });
         const tl1 = new THREE.Mesh(headLightGeo, tailLightMat);
         tl1.position.set(0.8, 0.2, 2.5);
@@ -307,37 +359,12 @@ class Vehicle {
         tl2.position.x = -0.8;
         this.mesh.add(tl2);
 
+        // Info Card
         this.infoCard = this.createInfoCard();
         this.infoCard.position.y = 4;
         this.mesh.add(this.infoCard);
 
         scene.add(this.mesh);
-    }
-
-    updateInfoCard() {
-        if (!this.infoCard) return;
-        const canvas = this.infoCard.material.map.image;
-        const context = canvas.getContext('2d');
-        const roundedSpeed = Math.round(this.speedKmh);
-
-        // Limpiar área de velocidad
-        context.clearRect(0, 0, 512, 110);
-        context.fillStyle = 'rgba(15, 23, 42, 0.95)';
-        context.beginPath();
-        context.roundRect(0, 0, 512, 110, { tl: 40, tr: 40, bl: 0, br: 0 });
-        context.fill();
-
-        // Actualizar borde y texto de velocidad
-        context.lineWidth = 10;
-        context.strokeStyle = roundedSpeed > SPEED_LIMIT ? '#ff3e3e' : '#22d3ee';
-        context.stroke();
-
-        context.font = 'Bold 100px Arial';
-        context.fillStyle = context.strokeStyle;
-        context.textAlign = 'center';
-        context.fillText(`${roundedSpeed} km/h`, 256, 100);
-
-        this.infoCard.material.map.needsUpdate = true;
     }
 
     createInfoCard() {
@@ -353,7 +380,7 @@ class Vehicle {
         context.font = 'Bold 100px Arial';
         context.fillStyle = context.strokeStyle;
         context.textAlign = 'center';
-        context.fillText(`${Math.round(this.speedKmh)} km/h`, 256, 100);
+        context.fillText(`${this.speedKmh} km/h`, 256, 100);
         context.fillStyle = '#f1c40f';
         context.fillRect(60, 120, 392, 80);
         context.font = 'Bold 65px Courier New';
@@ -368,54 +395,103 @@ class Vehicle {
     }
 
     update(delta, allVehicles) {
-        // Velocidad ESTRICTAMENTE CONSTANTE
-        this.speedMs = this.speedKmh / 3.6;
-        this.mesh.position.z += this.direction * this.speedMs * delta;
+        // 1. Lógica de frenado por rompevelocidades
+        const currentBumpZ = this.direction === -1 ? SPEED_BUMP_SOUTH_Z : SPEED_BUMP_NORTH_Z;
+        const distToBump = (this.mesh.position.z - currentBumpZ) * -this.direction;
+        let targetSpeed = this.baseSpeedKmh;
 
-        // Lógica de "Cambio de Carril" para no sobreponerse (Sin Frenar)
-        const currentLane = this.mesh.position.x;
-        const otherLane = this.direction === -1
-            ? (currentLane === 2.5 ? 5.5 : 2.5)
-            : (currentLane === -2.5 ? -5.5 : -2.5);
+        // Transición sinusoidal (Curva S) para suavidad absoluta
+        if (distToBump > 0 && distToBump < 150) {
+            const ratio = distToBump / 150;
+            const smoothFactor = 0.5 * (1 - Math.cos(Math.PI * ratio));
+            targetSpeed = this.safeBumpSpeedKmh + (this.baseSpeedKmh - this.safeBumpSpeedKmh) * smoothFactor;
+        } else if (distToBump <= 0 && distToBump > -100) {
+            const ratio = Math.abs(distToBump) / 100;
+            const smoothFactor = 0.5 * (1 - Math.cos(Math.PI * ratio));
+            targetSpeed = this.safeBumpSpeedKmh + (this.baseSpeedKmh - this.safeBumpSpeedKmh) * smoothFactor;
+        }
+
+        // 2. Lógica Anti-Colisión Suave
+        const lane = this.mesh.position.x;
+        let minDist = 1000;
+        let vAheadSpeed = 0;
 
         for (const other of allVehicles) {
             if (other === this || other.direction !== this.direction) continue;
-
-            // Si hay alguien adelante en mi carril a menos de 15 metros
-            const distZ = (this.mesh.position.z - other.mesh.position.z) * -this.direction;
-            if (Math.abs(other.mesh.position.x - currentLane) < 1 && distZ > 0 && distZ < 15) {
-                // Si el otro carril está libre en esa zona, me cambio
-                const laneOccupied = allVehicles.some(v =>
-                    v !== this &&
-                    v.direction === this.direction &&
-                    Math.abs(v.mesh.position.x - otherLane) < 1 &&
-                    Math.abs(v.mesh.position.z - this.mesh.position.z) < 20
-                );
-                if (!laneOccupied) {
-                    this.mesh.position.x = THREE.MathUtils.lerp(this.mesh.position.x, otherLane, 0.1);
+            if (Math.abs(other.mesh.position.x - lane) < 2) {
+                const d = (this.mesh.position.z - other.mesh.position.z) * -this.direction;
+                if (d > 0 && d < minDist) {
+                    minDist = d;
+                    vAheadSpeed = other.speedKmh;
                 }
             }
         }
 
-        this.updateInfoCard();
-
-        const radarPos = this.direction === -1 ? RADAR_SOUTH_Z : RADAR_NORTH_Z;
-        // Gatillo de detección EXACTO al cruzar la línea del radar
-        const hasPassed = this.direction === -1
-            ? (this.mesh.position.z <= radarPos)
-            : (this.mesh.position.z >= radarPos);
-
-        if (!this.checked && hasPassed) {
-            this.checked = true;
-            this.processDetection();
+        const safeDist = (this.speedKmh / 10) * 8 + 15;
+        if (minDist < safeDist) {
+            const collisionTarget = vAheadSpeed * Math.max(0, (minDist - 12) / (safeDist - 12));
+            targetSpeed = Math.min(targetSpeed, collisionTarget);
+            if (minDist < 12) targetSpeed = 0; // Frenado total si está muy cerca
         }
+
+        const alpha = 1 - Math.exp(-(targetSpeed < this.speedKmh ? 3.5 : 1.2) * delta);
+        this.speedKmh = THREE.MathUtils.lerp(this.speedKmh, targetSpeed, alpha);
+
+        // Bloqueo de seguridad: No retrocesos, no velocidades negativas
+        if (this.speedKmh < 0.1) this.speedKmh = 0;
+
+        const prevZ = this.mesh.position.z;
+        this.speedMs = this.speedKmh / 3.6;
+        this.mesh.position.z += this.direction * this.speedMs * delta;
+
+        // Detección cuando cruza su respectivo radar
+        if (!this.checked) {
+            const radarPos = this.direction === -1 ? RADAR_SOUTH_Z : RADAR_NORTH_Z;
+            const hasCrossed = this.direction === -1 ? (this.mesh.position.z <= radarPos + 5) : (this.mesh.position.z >= radarPos - 5);
+            if (hasCrossed) {
+                this.checked = true;
+                this.processDetection();
+            }
+        }
+    }
+    // Optimizar actualización de Info Card (Solo si está cerca y cambió la velocidad)
+
+    updateInfoCard() {
+        const canvas = this.infoCard.material.map.image;
+        if (!canvas) return;
+        const context = canvas.getContext('2d');
+        const roundedSpeed = Math.round(this.speedKmh);
+
+        context.clearRect(0, 0, 512, 110);
+        context.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        context.beginPath();
+        context.roundRect(0, 0, 512, 256, 40);
+        context.fill();
+        context.lineWidth = 10;
+        context.strokeStyle = roundedSpeed > SPEED_LIMIT ? '#ff3e3e' : '#22d3ee';
+        context.stroke();
+
+        context.font = 'Bold 100px Arial';
+        context.fillStyle = context.strokeStyle;
+        context.textAlign = 'center';
+        context.fillText(`${roundedSpeed} km/h`, 256, 100);
+
+        // Redraw plates and city (static)
+        context.fillStyle = '#f1c40f';
+        context.fillRect(60, 120, 392, 80);
+        context.font = 'Bold 65px Courier New';
+        context.fillStyle = 'black';
+        context.fillText(this.plate.number, 256, 175);
+        context.font = '36px Arial';
+        context.fillStyle = 'white';
+        context.fillText(this.plate.city.toUpperCase(), 256, 235);
+
+        this.infoCard.material.map.needsUpdate = true;
     }
 
     processDetection() {
         stats.total++;
         document.getElementById('total-vehicles').innerText = stats.total;
-        console.log(`[Radar] Vehículo ${this.plate.number} detectado a ${Math.round(this.speedKmh)} km/h`);
-
         if (this.speedKmh > SPEED_LIMIT) {
             stats.infractions++;
             document.getElementById('total-infractions').innerText = stats.infractions;
@@ -430,52 +506,34 @@ class Vehicle {
     destroy() { scene.remove(this.mesh); }
 }
 
+// Función de Spawning Estadístico
 function spawnLoop() {
     const delay = (-Math.log(1 - Math.random()) / LAMBDA) * 1000;
-    const direction = Math.random() > 0.5 ? 1 : -1;
-    const spawnZ = direction === -1 ? 450 : -450;
 
-    // Decidir aleatoriamente: Infractor (Dataset) o Normal (Aleatorio)
-    const isDataset = Math.random() < PROB_INFRACTOR;
+    // Categorización (Infractor o Normal)
+    const isInfractor = Math.random() < PROB_INFRACTOR;
+
     let data = null;
-
-    if (isDataset && csvData.length > 0) {
-        // Tomar un registro real del CSV (Infracción)
-        data = csvData[Math.floor(Math.random() * csvData.length)];
+    if (isInfractor && csvData.length > 0) {
+        data = csvData[dataIndex % csvData.length];
+        dataIndex++;
     } else {
-        // Generar un vehículo normal que NO cometa infracción
         data = {
-            speed: Math.floor(Math.random() * 15) + 35, // 35 a 50 km/h
+            speed: Math.floor(Math.random() * 20) + 35,
             provinceLetter: null,
             city: null
         };
     }
 
-    // Carriles disponibles
-    const lanes = direction === -1 ? [2.5, 5.5] : [-2.5, -5.5];
-    const freeLanes = lanes.filter(lx => !vehicles.some(v =>
-        v.direction === direction &&
-        Math.abs(v.mesh.position.x - lx) < 1 &&
-        Math.abs(v.mesh.position.z - spawnZ) < 15
-    ));
-
-    if (freeLanes.length > 0) {
-        const laneX = freeLanes[Math.floor(Math.random() * freeLanes.length)];
-        const v = new Vehicle(data, direction);
-        v.mesh.position.x = laneX;
-        vehicles.push(v);
-    } else {
-        // Si no hay carriles, intentamos de nuevo pronto
-        setTimeout(spawnLoop, 300);
-        return;
-    }
-
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    vehicles.push(new Vehicle(data, direction));
     setTimeout(spawnLoop, delay);
 }
 
 // Init
 createEnvironment();
-loadCSV().then(() => {
+loadCSV().finally(() => {
+    console.log("Iniciando spawnLoop...");
     spawnLoop();
 });
 
@@ -483,14 +541,15 @@ let lastTime = performance.now();
 function animate() {
     requestAnimationFrame(animate);
     const time = performance.now();
+    // Limitar delta para evitar saltos bruscos y lag extremo
     const delta = Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
 
     for (let i = vehicles.length - 1; i >= 0; i--) {
         const v = vehicles[i];
         v.update(delta, vehicles);
-        if (Math.abs(v.mesh.position.z) > 500) {
-            v.destroy();
+        if (v.mesh.position.z > 500 || v.mesh.position.z < -500) {
+            scene.remove(v.mesh);
             vehicles.splice(i, 1);
         }
     }
