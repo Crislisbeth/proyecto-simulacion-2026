@@ -228,10 +228,10 @@ function createEnvironment() {
     createRadar("north", -ROAD_WIDTH / 2 - 3, RADAR_NORTH_Z, Math.PI);
 
     // Traffic Agents (4 total)
-    agents.push(new TrafficAgent(ROAD_WIDTH / 2 + 2, AGENT_SOUTH_Z, 0));
-    agents.push(new TrafficAgent(-ROAD_WIDTH / 2 - 2, AGENT_NORTH_Z, Math.PI));
-    agents.push(new TrafficAgent(ROAD_WIDTH / 2 + 2, AGENT_SOUTH_Z2, 0));
-    agents.push(new TrafficAgent(-ROAD_WIDTH / 2 - 2, AGENT_NORTH_Z2, Math.PI));
+    agents.push(new TrafficAgent(0, AGENT_SOUTH_Z, 0));
+    agents.push(new TrafficAgent(0, AGENT_NORTH_Z, Math.PI));
+    agents.push(new TrafficAgent(0, AGENT_SOUTH_Z2, 0));
+    agents.push(new TrafficAgent(0, AGENT_NORTH_Z2, Math.PI));
 
     const agentsCountEl = document.getElementById('agents-count');
     if (agentsCountEl) agentsCountEl.innerText = agents.length;

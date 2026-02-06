@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ANT Ecuador - Propuesta 4: Sistema Maestro</title>
+    <title>ANT Ecuador - Simulación Quito</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="../navigation.css">
+    <link rel="stylesheet" href="navigation.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -23,27 +23,27 @@
 <body>
     <nav class="side-menu">
         <div class="menu-header">ANT ECUADOR</div>
-        <a href="../index.html" class="menu-item">
+        <a href="index.html" class="menu-item">
             <span class="menu-icon">🏠</span>
             <span class="menu-text">Panel Principal</span>
         </a>
-        <a href="../simulacion_base.html" class="menu-item">
+        <a href="simulacion_base.html" class="menu-item active">
             <span class="menu-icon">🚗</span>
             <span class="menu-text">Simulación Base</span>
         </a>
-        <a href="../propuesta1/index.html" class="menu-item">
+        <a href="propuesta1/index.html" class="menu-item">
             <span class="menu-icon">🚧</span>
             <span class="menu-text">Propuesta 1</span>
         </a>
-        <a href="../propuesta2/index.html" class="menu-item">
+        <a href="propuesta2/index.html" class="menu-item">
             <span class="menu-icon">🚥</span>
             <span class="menu-text">Propuesta 2</span>
         </a>
-        <a href="../propuesta3/index.html" class="menu-item">
+        <a href="propuesta3/index.html" class="menu-item">
             <span class="menu-icon">👮</span>
             <span class="menu-text">Propuesta 3</span>
         </a>
-        <a href="../propuesta4/index.html" class="menu-item active">
+        <a href="propuesta4/index.html" class="menu-item">
             <span class="menu-icon">🏆</span>
             <span class="menu-text">Propuesta 4</span>
         </a>
@@ -52,14 +52,12 @@
     <div id="ui-container">
         <header>
             <div class="logo-container">
-                <div class="ant-logo" style="background: linear-gradient(135deg, #f1c40f, #d35400);">ANT</div>
+                <div class="ant-logo">ANT</div>
                 <div class="title-text">
                     <span>AGENCIA NACIONAL DE TRÁNSITO</span>
                     <h1>CONTROL DE VELOCIDAD</h1>
-                    <small
-                        style="opacity: 0.9; color: #f1c40f; display: block; margin-top: 4px; font-weight: 800; letter-spacing: 1px;">
-                        PROPUESTA 4: SISTEMA HÍBRIDO MAESTRO (ÓPTIMO)
-                    </small>
+                    <small style="opacity: 0.7; display: block; margin-top: 4px; font-weight: 600;">QUITO - AV. SIMÓN
+                        BOLÍVAR</small>
                 </div>
             </div>
             <div class="stats-panel">
@@ -69,33 +67,31 @@
                 </div>
                 <div class="stat-item danger">
                     <span class="label">INFRACCIONES</span>
-                    <span id="total-infractions" class="value" style="color: #2ecc71;">0</span>
-                </div>
-                <div class="stat-item warning" style="border-color: #f1c40f;">
-                    <span class="label">SEGURIDAD</span>
-                    <span class="value" style="color: #f1c40f;">MÁXIMA</span>
+                    <span id="total-infractions" class="value">0</span>
                 </div>
             </div>
         </header>
 
         <div id="notification-area"></div>
+
         <div id="alert-queue"></div>
 
         <div class="legend">
-            <div class="legend-item"><span class="dot normal" style="background: #2ecc71;"></span> Control Total</div>
-            <div class="legend-item"><span class="dot infractor"></span> Disuasión Activa</div>
+            <div class="legend-item"><span class="dot normal"></span> Normal (≤ 50 km/h)</div>
+            <div class="legend-item"><span class="dot infractor"></span> Infractor (> 50 km/h)</div>
         </div>
 
         <div class="controls-hint">
-            Sistema Híbrido: Agentes + Rompevelocidades
+            Usa el mouse para rotar la cámara • Scroll para Zoom
         </div>
 
-        <a href="../index.html" class="next-proposal-btn">
-            <span>REGRESAR AL INICIO</span> 🏠
+        <a href="propuesta1/index.html" class="next-proposal-btn">
+            <span>VER PROPUESTA 1</span> 🚧
         </a>
     </div>
 
     <canvas id="bg"></canvas>
+
     <script type="module" src="main.js"></script>
 </body>
 

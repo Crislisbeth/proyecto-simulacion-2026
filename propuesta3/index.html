@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ANT Ecuador - Propuesta 3: Agentes</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../navigation.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -20,6 +21,34 @@
 </head>
 
 <body>
+    <nav class="side-menu">
+        <div class="menu-header">ANT ECUADOR</div>
+        <a href="../index.html" class="menu-item">
+            <span class="menu-icon">🏠</span>
+            <span class="menu-text">Panel Principal</span>
+        </a>
+        <a href="../simulacion_base.html" class="menu-item">
+            <span class="menu-icon">🚗</span>
+            <span class="menu-text">Simulación Base</span>
+        </a>
+        <a href="../propuesta1/index.html" class="menu-item">
+            <span class="menu-icon">🚧</span>
+            <span class="menu-text">Propuesta 1</span>
+        </a>
+        <a href="../propuesta2/index.html" class="menu-item">
+            <span class="menu-icon">🚥</span>
+            <span class="menu-text">Propuesta 2</span>
+        </a>
+        <a href="../propuesta3/index.html" class="menu-item active">
+            <span class="menu-icon">👮</span>
+            <span class="menu-text">Propuesta 3</span>
+        </a>
+        <a href="../propuesta4/index.html" class="menu-item">
+            <span class="menu-icon">🏆</span>
+            <span class="menu-text">Propuesta 4</span>
+        </a>
+    </nav>
+
     <div id="ui-container">
         <header>
             <div class="logo-container">
@@ -60,6 +89,10 @@
         <div class="controls-hint">
             Usa el mouse para rotar la cámara • Scroll para Zoom
         </div>
+
+        <a href="../propuesta4/index.html" class="next-proposal-btn">
+            <span>VER PROPUESTA 4</span> 🏆
+        </a>
     </div>
 
     <canvas id="bg"></canvas>

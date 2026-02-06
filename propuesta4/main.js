@@ -11,8 +11,8 @@ const AGENT_SOUTH_Z = 80; // Custodiando el resalto
 const AGENT_NORTH_Z = -80;
 
 const ROAD_WIDTH = 14;
-const LAMBDA = 0.6;
-const PROB_INFRACTOR = 1.0; // Solo dataset para demostración estricta
+const LAMBDA = 0.6; // Intensidad del Proceso de Poisson (vehículos por segundo)
+const PROB_INFRACTOR = 1.0; // Ensayo de Bernoulli: 100% probabilidad para pruebas de estrés
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
 
 // State
@@ -231,8 +231,8 @@ function createEnvironment() {
     createRadar("north", -ROAD_WIDTH / 2 - 3, RADAR_NORTH_Z, Math.PI);
 
     // Traffic Agents (Hybrid Guardians)
-    agents.push(new TrafficAgent(ROAD_WIDTH / 2 + 2, AGENT_SOUTH_Z, 0));
-    agents.push(new TrafficAgent(-ROAD_WIDTH / 2 - 2, AGENT_NORTH_Z, Math.PI));
+    agents.push(new TrafficAgent(0, AGENT_SOUTH_Z, 0));
+    agents.push(new TrafficAgent(0, AGENT_NORTH_Z, Math.PI));
 }
 
 function createBumpTexture() {
@@ -393,6 +393,10 @@ class Vehicle {
 }
 
 function spawnLoop() {
+    /**
+     * DISTRIBUCIÓN EXPONENCIAL (Monte Carlo)
+     * Generación de tiempos de espera aleatorios siguiendo una curva de probabilidad decreciente.
+     */
     const delay = (-Math.log(1 - Math.random()) / LAMBDA) * 1000;
     let data = csvData.length > 0 ? csvData[dataIndex++ % csvData.length] : { speed: 80 };
     vehicles.push(new Vehicle(data, Math.random() > 0.5 ? 1 : -1));

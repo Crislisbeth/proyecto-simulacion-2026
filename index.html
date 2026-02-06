@@ -4,62 +4,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ANT Ecuador - Simulación Quito</title>
-    <link rel="stylesheet" href="style.css">
+    <title>ANT Ecuador - Hub de Simulación</title>
+    <link rel="stylesheet" href="dashboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 
 <body>
-    <div id="ui-container">
-        <header>
-            <div class="logo-container">
-                <div class="ant-logo">ANT</div>
-                <div class="title-text">
-                    <span>AGENCIA NACIONAL DE TRÁNSITO</span>
-                    <h1>CONTROL DE VELOCIDAD</h1>
-                    <small style="opacity: 0.7; display: block; margin-top: 4px; font-weight: 600;">QUITO - AV. SIMÓN
-                        BOLÍVAR</small>
+    <div class="dashboard-hub">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-section">
+                <div class="ant-badge">ANT</div>
+                <div class="logo-text">
+                    <h2>ECUADOR</h2>
+                    <h1>SIMULACIÓN</h1>
                 </div>
             </div>
-            <div class="stats-panel">
-                <div class="stat-item">
-                    <span class="label">VEHÍCULOS</span>
-                    <span id="total-vehicles" class="value">0</span>
+
+            <nav class="nav-group">
+                <a href="#" class="nav-link active">
+                    <span class="nav-icon">📊</span> Panel Principal
+                </a>
+                <a href="simulacion_base.html" class="nav-link">
+                    <span class="nav-icon">🚗</span> Simulación Base
+                </a>
+                <a href="propuesta1/index.html" class="nav-link">
+                    <span class="nav-icon">🚧</span> Propuesta 1
+                </a>
+                <a href="propuesta2/index.html" class="nav-link">
+                    <span class="nav-icon">🚥</span> Propuesta 2
+                </a>
+                <a href="propuesta3/index.html" class="nav-link">
+                    <span class="nav-icon">👮</span> Propuesta 3
+                </a>
+                <a href="propuesta4/index.html" class="nav-link">
+                    <span class="nav-icon">🏆</span> Propuesta 4
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Dashboard Content -->
+        <main class="main-content">
+            <section class="hero-section">
+                <h1>Control de Velocidad Inteligente</h1>
+                <p>Análisis de seguridad vial en la Av. Simón Bolívar mediante modelos estocásticos y simulación 3D
+                    basada en datos reales de la Agencia Nacional de Tránsito.</p>
+            </section>
+
+            <section class="info-grid">
+                <!-- Problem Card -->
+                <div class="info-card danger">
+                    <span class="card-tag">El Problema</span>
+                    <h3>Exceso de Velocidad Mortal</h3>
+                    <p>La Av. Simón Bolívar registra una de las tasas de accidentabilidad más altas de Quito debido a:
+                    </p>
+                    <ul>
+                        <li>Velocidades que superan los 120 km/h en zonas de 50.</li>
+                        <li>Falta de disuasión física efectiva en puntos ciegos.</li>
+                        <li>Conductores que ignoran las señales tradicionales.</li>
+                    </ul>
                 </div>
-                <div class="stat-item danger">
-                    <span class="label">INFRACCIONES</span>
-                    <span id="total-infractions" class="value">0</span>
+
+                <!-- Solution Card (Propuesta 4) -->
+                <div class="info-card success">
+                    <span class="card-tag">La Solución Ganadora</span>
+                    <h3>Propuesta 4: Híbrida Maestra</h3>
+                    <p>La combinación perfecta entre tecnología física y vigilancia humana es la única que garantiza:
+                    </p>
+                    <ul>
+                        <li><strong>Disuasión Doble:</strong> El resalto obliga al freno físico; el agente impone
+                            respeto psicológico.</li>
+                        <li><strong>Prevención de Piques:</strong> El efecto del agente mantiene la velocidad baja tras
+                            el radar.</li>
+                        <li><strong>99% Efectividad:</strong> Reducción casi total de infracciones en zona crítica.</li>
+                    </ul>
                 </div>
-            </div>
-        </header>
+            </section>
 
-        <div id="notification-area"></div>
+            <section class="proposals-title">
+                <h2>Explorar Propuestas</h2>
+            </section>
 
-        <div id="alert-queue"></div>
+            <section class="proposals-grid">
+                <a href="simulacion_base.html" class="proposal-card">
+                    <span class="proposal-number">ESTADO ACTUAL</span>
+                    <h4>Simulación Base</h4>
+                    <p>Comportamiento natural del tráfico con radares estándar y dataset real de febrero 2022.</p>
+                </a>
 
-        <div class="legend">
-            <div class="legend-item"><span class="dot normal"></span> Normal (≤ 50 km/h)</div>
-            <div class="legend-item"><span class="dot infractor"></span> Infractor (> 50 km/h)</div>
-        </div>
+                <a href="propuesta1/index.html" class="proposal-card">
+                    <span class="proposal-number">#1</span>
+                    <h4>Control Físico</h4>
+                    <p>Implementación de rompevelocidades estratégicos para forzar la reducción de velocidad.</p>
+                </a>
 
-        <div class="controls-hint">
-            Usa el mouse para rotar la cámara • Scroll para Zoom
-        </div>
+                <a href="propuesta2/index.html" class="proposal-card">
+                    <span class="proposal-number">#2</span>
+                    <h4>Semaforización</h4>
+                    <p>Regulación del flujo mediante semáforos inteligentes y detección de cruces en rojo.</p>
+                </a>
+
+                <a href="propuesta3/index.html" class="proposal-card">
+                    <span class="proposal-number">#3</span>
+                    <h4>Vigilancia Humana</h4>
+                    <p>Impacto psicológico de la presencia de agentes de la ANT en la vía.</p>
+                </a>
+
+                <a href="propuesta4/index.html" class="proposal-card master-card">
+                    <span class="proposal-number">MEJOR SOLUCIÓN</span>
+                    <h4>Híbrida Maestra</h4>
+                    <p>Integración total: Resaltos + Agentes + Radares para un control vial infalible.</p>
+                </a>
+            </section>
+        </main>
     </div>
-
-    <canvas id="bg"></canvas>
-
-    <script type="module" src="main.js"></script>
 </body>
 
 </html>

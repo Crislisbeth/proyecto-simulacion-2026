@@ -6,8 +6,8 @@ const SPEED_LIMIT = 50;
 const RADAR_SOUTH_Z = 50;
 const RADAR_NORTH_Z = -50;
 const ROAD_WIDTH = 14;
-const LAMBDA = 0.8; // Aumentado ligeramente para más flujo
-const PROB_INFRACTOR = 0.35; // Probabilidad base si falla CSV
+const LAMBDA = 0.8; // Parámetro de intensidad para el Proceso de Poisson
+const PROB_INFRACTOR = 0.35; // Probabilidad de éxito en un Ensayo de Bernoulli (Infracción)
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
 
 // State
@@ -431,11 +431,21 @@ class Vehicle {
 }
 
 function spawnLoop() {
+    /** 
+     * DISTRIBUCIÓN EXPONENCIAL
+     * Se usa para modelar el tiempo entre arribos (inter-arrival times).
+     * Fórmula: -ln(1 - R) / λ
+     * Donde R es una variable aleatoria uniforme [0,1).
+     */
     const delay = (-Math.log(1 - Math.random()) / LAMBDA) * 1000;
     const direction = Math.random() > 0.5 ? 1 : -1;
     const spawnZ = direction === -1 ? 450 : -450;
 
-    // Decidir aleatoriamente: Infractor (Dataset) o Normal (Aleatorio)
+    /**
+     * ENSAYO DE BERNOULLI
+     * Se usa para decidir si el vehículo que aparece será un infractor 
+     * (basado en el dataset real) o un conductor normal.
+     */
     const isDataset = Math.random() < PROB_INFRACTOR;
     let data = null;
 
