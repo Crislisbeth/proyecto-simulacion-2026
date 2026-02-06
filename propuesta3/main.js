@@ -13,6 +13,7 @@ const ROAD_WIDTH = 14;
 const LAMBDA = 0.6;
 const PROB_INFRACTOR = 1.0; // Solo dataset
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
+const TIME_SCALE = 1.6;
 
 // State
 let vehicles = [];
@@ -412,7 +413,7 @@ function spawnLoop() {
     }
     const direction = Math.random() > 0.5 ? 1 : -1;
     vehicles.push(new Vehicle(data, direction));
-    setTimeout(spawnLoop, delay);
+    setTimeout(spawnLoop, delay / TIME_SCALE);
 }
 
 // Init
@@ -433,7 +434,7 @@ function animate() {
 
     for (let i = vehicles.length - 1; i >= 0; i--) {
         const v = vehicles[i];
-        v.update(delta, vehicles);
+        v.update(delta * TIME_SCALE, vehicles);
         if (Math.abs(v.mesh.position.z) > 500) {
             scene.remove(v.mesh);
             vehicles.splice(i, 1);

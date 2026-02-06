@@ -9,6 +9,7 @@ const ROAD_WIDTH = 14;
 const LAMBDA = 0.8; // Parámetro de intensidad para el Proceso de Poisson
 const PROB_INFRACTOR = 0.35; // Probabilidad de éxito en un Ensayo de Bernoulli (Infracción)
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
+const TIME_SCALE = 1.6; // Factor de aceleración visual
 
 // State
 let vehicles = [];
@@ -476,11 +477,11 @@ function spawnLoop() {
         vehicles.push(v);
     } else {
         // Si no hay carriles, intentamos de nuevo pronto
-        setTimeout(spawnLoop, 300);
+        setTimeout(spawnLoop, 300 / TIME_SCALE);
         return;
     }
 
-    setTimeout(spawnLoop, delay);
+    setTimeout(spawnLoop, delay / TIME_SCALE);
 }
 
 // Init
@@ -498,7 +499,7 @@ function animate() {
 
     for (let i = vehicles.length - 1; i >= 0; i--) {
         const v = vehicles[i];
-        v.update(delta, vehicles);
+        v.update(delta * TIME_SCALE, vehicles);
         if (Math.abs(v.mesh.position.z) > 500) {
             v.destroy();
             vehicles.splice(i, 1);

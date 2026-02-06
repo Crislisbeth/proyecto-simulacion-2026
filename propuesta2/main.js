@@ -10,6 +10,7 @@ const ROAD_WIDTH = 14;
 const LAMBDA = 0.6; // Ajustado para una vía
 const PROB_INFRACTOR = 0.3;
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
+const TIME_SCALE = 1.6;
 
 // Detection Points
 const MAIN_RADAR_Z = 0;
@@ -336,7 +337,7 @@ function createTrafficLight(x, y, z, id, rotation) {
 
 function updateTrafficLight(delta) {
     if (!window.trafficLights) return;
-    lightTimer += delta;
+    lightTimer += delta * TIME_SCALE;
 
     if (currentLight === LIGHT.GREEN && lightTimer > LIGHT_DURATIONS.green) {
         currentLight = LIGHT.YELLOW;
@@ -695,7 +696,7 @@ function spawnLoop() {
 
     const direction = Math.random() > 0.5 ? 1 : -1;
     vehicles.push(new Vehicle(data, direction));
-    setTimeout(spawnLoop, delay);
+    setTimeout(spawnLoop, delay / TIME_SCALE);
 }
 
 // Init
@@ -717,7 +718,7 @@ function animate() {
 
     for (let i = vehicles.length - 1; i >= 0; i--) {
         const v = vehicles[i];
-        v.update(delta, vehicles);
+        v.update(delta * TIME_SCALE, vehicles);
         if (v.mesh.position.z > 500 || v.mesh.position.z < -500) {
             scene.remove(v.mesh);
             vehicles.splice(i, 1);
