@@ -8,7 +8,7 @@ const RADAR_NORTH_Z = -10;
 const SPEED_BUMP_SOUTH_Z = 50;
 const SPEED_BUMP_NORTH_Z = -50;
 const ROAD_WIDTH = 14;
-const LAMBDA = 1.2; // Más vehículos por segundo (antes 0.6)
+const LAMBDA = 0.7; // Reducido de 1.2 para mejorar rendimiento
 const PROB_INFRACTOR = 0.7; // Mayor probabilidad para ver el dataset (antes 0.3)
 const CSV_PATH = 'ant-exceso-velocidad-febrero-2022.csv';
 const TIME_SCALE = 1.6;
@@ -189,7 +189,7 @@ function createEnvironment() {
     scene.add(rightBarrier);
 
     // Streetlights
-    for (let i = -500; i < 500; i += 40) {
+    for (let i = -500; i < 500; i += 80) {
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0x333333 }));
         pole.position.set(-ROAD_WIDTH / 2 - 2, 6, i);
         scene.add(pole);
@@ -439,11 +439,6 @@ class Vehicle {
         this.speedKmh = THREE.MathUtils.lerp(this.speedKmh, targetSpeed, alpha);
 
         // Debug log cada segundo para monitorear (opcional, comentar si molesta)
-        if (Math.abs(distToBump) < 20 && Math.random() < 0.05) {
-            console.log(`[BUMP DEBUG] Vehículo ${this.plate.number}: Vel Actual = ${Math.round(this.speedKmh)} km/h, Target = ${Math.round(targetSpeed)} km/h`);
-        }
-
-        // Bloqueo de seguridad: No retrocesos, no velocidades negativas
         if (this.speedKmh < 0.1) this.speedKmh = 0;
 
         const prevZ = this.mesh.position.z;
