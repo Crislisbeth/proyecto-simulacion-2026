@@ -33,7 +33,7 @@ Para que esta simulación sea científicamente válida, aplicamos los siguientes
 
 ---
 
-## � Aplicación Estadística por Propuesta
+##  Aplicación Estadística por Propuesta
 
 En cada fase del proyecto, los modelos se aplican para resolver problemas específicos:
 
@@ -53,7 +53,7 @@ En cada fase del proyecto, los modelos se aplican para resolver problemas espec�
 
 ---
 
-## �� Propuestas Desarrolladas
+##  Propuestas Desarrolladas
 
 ### 🏗️ Propuesta 1: Rompevelocidades (Control Físico)
 Implementación de resaltos físicos antes del punto de control. Obliga al conductor a frenar para proteger la mecánica de su vehículo.
@@ -92,3 +92,4 @@ El **Sistema Híbrido Maestro** garantiza una reducción del **99% en las infrac
 
 ---
 *Desarrollado para la Agencia Nacional de Tránsito - Ecuador.*
+
